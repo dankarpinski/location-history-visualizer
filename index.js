@@ -10,7 +10,7 @@
         // Initialize the map
         map = L.map('map').setView([0, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: 'location-history-visualizer is open source and available <a href="https://github.com/theopolisme/location-history-visualizer">on GitHub</a>. Map data &copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors.',
+            attribution: 'Map data &copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors.',
             maxZoom: 18,
             minZoom: 2
         }).addTo(map);
@@ -34,13 +34,13 @@
     }
 
     function stageTwo(file) {
-        lines = L.polyline([], {
-            color: "blue",
-            smoothFactor: 2.0,
-            opacity: 0.7,
-            interactive: false,
-            weight: 2
-        }).addTo(map);
+        // lines = L.polyline([], {
+        //     color: "blue",
+        //     smoothFactor: 2.0,
+        //     opacity: 0.7,
+        //     interactive: false,
+        //     weight: 2
+        // }).addTo(map);
 
         // First, change tabs
         $('body').addClass('working');
@@ -83,10 +83,17 @@
 
                 var total_dist = 0;
                 return [locations.reduce(function (a, location, index, array) {
-
                     if (index > 0) {
-                        var lat_long = [location.latitudeE7 * SCALAR_E7, location.longitudeE7 * SCALAR_E7];
-                        var lat_long_prev = [array[index - 1].latitudeE7 * SCALAR_E7, array[index - 1].longitudeE7 * SCALAR_E7];
+                        var lat = location.latitudeE7 * SCALAR_E7;
+                        var long = location.longitudeE7 * SCALAR_E7;
+                        var lat_prev = array[index - 1].latitudeE7 * SCALAR_E7;
+                        var long_prev = array[index - 1].longitudeE7 * SCALAR_E7;
+                        if (isNaN(lat) || isNaN(long) || isNaN(lat_prev) || isNaN(long_prev)) {
+                            return a;
+                        }
+
+                        var lat_long = [lat, long];
+                        var lat_long_prev = [lat_prev, long_prev];
                         var dist = distance(lat_long[0], lat_long[1], lat_long_prev[0], lat_long_prev[1]);
                         var time = (array[index - 1].timestampMs - location.timestampMs) / (1000 * 60 * 60);
                         var vel = dist / time;
@@ -117,6 +124,11 @@
                     if (dist) {
                         total_dist += dist;
                     }
+                    if (location.from.length == 2 && location.to.length == 2) {
+                        if (location.from[0] != location.to[0]) {
+                            L.Polyline.Arc(location.from, location.to).addTo(map);
+                        }
+                    }
                     return [location.to, location.from];
                 }), total_dist];
 
@@ -143,14 +155,14 @@
 
                 status('Generating map...');
 
-                try {
+                // try {
                     latlngs = getLocationDataFromJson(e.target.result);
-                } catch (ex) {
-                    status('Something went wrong generating your map. Ensure you\'re uploading a Google Takeout JSON file that contains location data and try again, or create an issue on GitHub if the problem persists. (error: ' + ex.message + ')');
-                    return;
-                }
+                // } catch (ex) {
+                //     status('Something went wrong generating your map. Ensure you\'re uploading a Google Takeout JSON file that contains location data and try again, or create an issue on GitHub if the problem persists. (error: ' + ex.message + ')');
+                //     return;
+                // }
 
-                lines.setLatLngs(latlngs[0]);
+                // lines.setLatLngs(latlngs[0]);
                 stageThree(/* numberProcessed */ latlngs[1]);
             };
 
