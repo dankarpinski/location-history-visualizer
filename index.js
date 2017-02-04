@@ -68,76 +68,69 @@
                     throw new ReferenceError('No location data found.');
                 }
 
-                var moving_avg_vals = [];
-
-                function moving_average(value) {
-                    if (moving_avg_vals.length >= 5) {
-                        moving_avg_vals.pop();
-                    }
-                    moving_avg_vals.unshift(value);
-                    var sum = moving_avg_vals.reduce(function (pv, cv) {
-                        return pv + cv;
-                    }, 0);
-                    return sum / moving_avg_vals.length;
-                }
-
                 var total_dist = 0;
                 return [locations.reduce(function (a, location, index, array) {
+                    if (location.accuracy > 1000) {
+                        return a;
+                    }
+
                     if (index > 0) {
                         var lat = location.latitudeE7 * SCALAR_E7;
                         var long = location.longitudeE7 * SCALAR_E7;
+                        var time = location.timestampMs / 1000;
+                        var time_prev = array[index - 1].timestampMs / 1000;
                         var lat_prev = array[index - 1].latitudeE7 * SCALAR_E7;
                         var long_prev = array[index - 1].longitudeE7 * SCALAR_E7;
 
                         var lat_long = [lat, long];
                         var lat_long_prev = [lat_prev, long_prev];
-                        var dist = distance(lat_long[0], lat_long[1], lat_long_prev[0], lat_long_prev[1]);
-                        var time = (array[index - 1].timestampMs - location.timestampMs) / (1000 * 60 * 60);
-                        var vel = dist / time;
+                        var dist = distance_on_unit_sphere(lat_long[0], lat_long[1], lat_long_prev[0], lat_long_prev[1]);
+                        var dist_time = (time_prev - time) / (60 * 60);
+                        var vel = dist / dist_time;
 
                         // disgard rediculous
-                        if (vel > 1000 || vel < 5) {
+                        if (vel < 40) {
                             return a;
                         }
 
-                        var moving_avg = moving_average(vel);
-                        if (moving_avg > 30) {
-                            // Join points from the same journey
-                            if (a[a.length - 1] !== undefined) {
-                                lat_long_past = a[a.length - 1].from;
-                                time_prev = a[a.length - 1].time;
-                                dist = distance(lat_long[0], lat_long[1], lat_long_past[0], lat_long_past[1]);
-                                if (dist < 1 && (location.timestampMs - time_prev) < 3600) {
-                                    a[a.length - 1].from = lat_long;
-                                    return a;
-                                }
+                        // Join points from the same journey
+                        if (a[a.length - 1] !== undefined) {
+                            var time_past = a[a.length - 1].timeStart;
+                            if ((time_past - time) < (60 * 60)) {
+                                a[a.length - 1].from = lat_long;
+                                a[a.length - 1].timeStart = time;
+                                return a;
                             }
-                            a.push({to: lat_long_prev, from: lat_long, time: location.timestampMs});
                         }
+                        a.push({to: lat_long_prev, from: lat_long, timeEnd: time_prev, timeStart: time});
                     }
                     return a;
                 }, []).map(function (location) {
-                    dist = distance(location.to[0], location.to[1], location.from[0], location.from[1]);
+                    dist = distance_on_unit_sphere(location.to[0], location.to[1], location.from[0], location.from[1]);
                     if (dist) {
                         total_dist += dist;
                     }
-                    if (location.from[0] != location.to[0] || location.from[1] != location.to[1]) {
-                        L.Polyline.Arc(location.from, location.to).addTo(map);
+                    vel = (dist * 60 * 60) / (location.timeEnd - location.timeStart);
+                    if (dist > 200 && vel > 200) {
+                        L.Polyline.Arc(location.from, location.to, {
+                            vertices: 100,
+                            color: "#" + ((1 << 24) * Math.random() | 0).toString(16)
+                        }).addTo(map);
                     }
                     return [location.to, location.from];
                 }), total_dist];
 
-                function distance(lat1, lon1, lat2, lon2) {
-                    var radlat1 = Math.PI * lat1 / 180;
-                    var radlat2 = Math.PI * lat2 / 180;
-                    var theta = lon1 - lon2;
-                    var radtheta = Math.PI * theta / 180;
-                    var dist = Math.sin(radlat1) * Math.sin(radlat2) + Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
-                    dist = Math.acos(dist);
-                    dist = dist * 180 / Math.PI;
-                    dist = dist * 60 * 1.1515;
-                    return dist * 1.609344;
-                }
+                function distance_on_unit_sphere(lat1, long1, lat2, long2) {
+                var degrees_to_radians = Math.PI / 180.0;
+                var phi1 = (90.0 - lat1) * degrees_to_radians;
+                var phi2 = (90.0 - lat2) * degrees_to_radians;
+                var theta1 = long1 * degrees_to_radians;
+                var theta2 = long2 * degrees_to_radians;
+
+                var cos = (Math.sin(phi1) * Math.sin(phi2) * Math.cos(theta1 - theta2) + Math.cos(phi1) * Math.cos(phi2));
+                var arc = Math.acos(cos);
+                return arc * 6378.1;
+            }
             }
 
             reader.onprogress = function (e) {
@@ -151,7 +144,7 @@
                 status('Generating map...');
 
                 try {
-                latlngs = getLocationDataFromJson(e.target.result);
+                    latlngs = getLocationDataFromJson(e.target.result);
                 } catch (ex) {
                     status('Something went wrong generating your map. Ensure you\'re uploading a Google Takeout JSON file that contains location data and try again, or create an issue on GitHub if the problem persists. (error: ' + ex.message + ')');
                     return;
