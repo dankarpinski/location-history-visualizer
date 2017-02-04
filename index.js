@@ -88,9 +88,6 @@
                         var long = location.longitudeE7 * SCALAR_E7;
                         var lat_prev = array[index - 1].latitudeE7 * SCALAR_E7;
                         var long_prev = array[index - 1].longitudeE7 * SCALAR_E7;
-                        if (isNaN(lat) || isNaN(long) || isNaN(lat_prev) || isNaN(long_prev)) {
-                            return a;
-                        }
 
                         var lat_long = [lat, long];
                         var lat_long_prev = [lat_prev, long_prev];
@@ -124,10 +121,8 @@
                     if (dist) {
                         total_dist += dist;
                     }
-                    if (location.from.length == 2 && location.to.length == 2) {
-                        if (location.from[0] != location.to[0]) {
-                            L.Polyline.Arc(location.from, location.to).addTo(map);
-                        }
+                    if (location.from[0] != location.to[0] || location.from[1] != location.to[1]) {
+                        L.Polyline.Arc(location.from, location.to).addTo(map);
                     }
                     return [location.to, location.from];
                 }), total_dist];
@@ -155,12 +150,12 @@
 
                 status('Generating map...');
 
-                // try {
-                    latlngs = getLocationDataFromJson(e.target.result);
-                // } catch (ex) {
-                //     status('Something went wrong generating your map. Ensure you\'re uploading a Google Takeout JSON file that contains location data and try again, or create an issue on GitHub if the problem persists. (error: ' + ex.message + ')');
-                //     return;
-                // }
+                try {
+                latlngs = getLocationDataFromJson(e.target.result);
+                } catch (ex) {
+                    status('Something went wrong generating your map. Ensure you\'re uploading a Google Takeout JSON file that contains location data and try again, or create an issue on GitHub if the problem persists. (error: ' + ex.message + ')');
+                    return;
+                }
 
                 // lines.setLatLngs(latlngs[0]);
                 stageThree(/* numberProcessed */ latlngs[1]);
