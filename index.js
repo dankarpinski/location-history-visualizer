@@ -88,7 +88,7 @@
                         var dist_time = (time_prev - time) / (60 * 60);
                         var vel = dist / dist_time;
 
-                        // disgard rediculous
+                        // discard rediculous
                         if (vel < 40) {
                             return a;
                         }
@@ -121,16 +121,16 @@
                 }), total_dist];
 
                 function distance_on_unit_sphere(lat1, long1, lat2, long2) {
-                var degrees_to_radians = Math.PI / 180.0;
-                var phi1 = (90.0 - lat1) * degrees_to_radians;
-                var phi2 = (90.0 - lat2) * degrees_to_radians;
-                var theta1 = long1 * degrees_to_radians;
-                var theta2 = long2 * degrees_to_radians;
+                    var degrees_to_radians = Math.PI / 180.0;
+                    var phi1 = (90.0 - lat1) * degrees_to_radians;
+                    var phi2 = (90.0 - lat2) * degrees_to_radians;
+                    var theta1 = long1 * degrees_to_radians;
+                    var theta2 = long2 * degrees_to_radians;
 
-                var cos = (Math.sin(phi1) * Math.sin(phi2) * Math.cos(theta1 - theta2) + Math.cos(phi1) * Math.cos(phi2));
-                var arc = Math.acos(cos);
-                return arc * 6378.1;
-            }
+                    var cos = (Math.sin(phi1) * Math.sin(phi2) * Math.cos(theta1 - theta2) + Math.cos(phi1) * Math.cos(phi2));
+                    var arc = Math.acos(cos);
+                    return arc * 6378.1;
+                }
             }
 
             reader.onprogress = function (e) {
